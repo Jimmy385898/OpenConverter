@@ -102,12 +102,20 @@ jobs:
         echo "PATH=$(pwd)/output/bmf/bin:$(pwd)/output/bmf/lib:$PATH" >> $GITHUB_ENV
         echo "PYTHONPATH=$(pwd)/output/bmf/lib:$(pwd)/output" >> $GITHUB_ENV
 
+    - name: Build Project
+      shell: pwsh
+      run: |
+        cd src
+        cmake -B build
+        cd build
+        cmake --build . --config Release
+
     - name: Create Package
-      shell: bash
+      shell: pwsh
       run: |
         mkdir -p OpenConverter_Windows_x64
-        cp -r src/build/* OpenConverter_Windows_x64/
-        7z a OpenConverter_Windows_x64.zip OpenConverter_Windows_x64/
+        Copy-Item -Path "src\build\*" -Destination "OpenConverter_Windows_x64" -Recurse
+        7z a OpenConverter_Windows_x64.zip OpenConverter_Windows_x64
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v3
