@@ -32,18 +32,6 @@ jobs:
           wget
           curl
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        architecture: 'x64'
-
-    - name: Setup Python Dependencies
-      shell: pwsh
-      run: |
-        python -m pip install --upgrade pip
-        pip install timeout_decorator numpy onnxruntime pytest opencv-python cmake
-
     - name: Checkout BMF repository
       run: |
         git clone https://github.com/JackLau1222/bmf.git
@@ -70,25 +58,28 @@ jobs:
         }
         Copy-Item -Path "ffmpeg-5.1.2-win64-gpl-shared\*" -Destination $usrLocal -Recurse -Force
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v3
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
-        version: '5.15.2'
-        host: 'windows'
-        target: 'desktop'
-        arch: 'win64_msvc2019_64'
-        tools: 'tools_qtcreator'
-        cache: true
+        python-version: '3.7'
+        architecture: 'x64'
+
+    - name: Setup Python and Dependencies
+      shell: pwsh
+      run: |
+        python -m pip install --upgrade pip
+        pip install timeout_decorator numpy onnxruntime pytest opencv-python cmake
 
     - name: Build BMF
       shell: pwsh
       run: |
-        cd bmf
-        $env:PYTHONIOENCODING = "utf-8"
-        
         $bashPath = "C:\msys64\usr\bin\bash.exe"
         $bashCommand = @'
+        cd bmf
         export PATH=/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$PATH
+        export PYTHONPATH=/c/hostedtoolcache/windows/Python/3.7/x64/python
+        export PYTHON_INCLUDE_DIRS=/c/hostedtoolcache/windows/Python/3.7/x64/include
+        export PYTHON_LIBRARIES=/c/hostedtoolcache/windows/Python/3.7/x64/libs/python37.lib
         python -V
         python3 -V
         echo $PATH
@@ -98,35 +89,32 @@ jobs:
         ./build_win_lite.sh --msvc=2019 --preset=x64-Release bmf_ffmpeg
         cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
         cp -r build_win_lite/x64-Release/output ..
-'@
-        
-        $bashCommand | Out-File -FilePath "build_command.sh" -Encoding utf8 -NoNewline
-        & $bashPath -l build_command.sh
+        '@
+        echo $bashCommand | & $bashPath
 
     - name: Set Environment Variables
-      shell: pwsh
+      shell: bash
       run: |
-        $currentLocation = Get-Location
-        "C_INCLUDE_PATH=$currentLocation\output\bmf\include" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-        "CPLUS_INCLUDE_PATH=$currentLocation\output\bmf\include" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-        "LIBRARY_PATH=$currentLocation\output\bmf\lib" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-        "PATH=$currentLocation\output\bmf\bin;$currentLocation\output\bmf\lib;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-        "PYTHONPATH=$currentLocation\output\bmf\lib;$currentLocation\output" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        echo "PYTHONHOME=$(dirname $(which python))" >> $GITHUB_ENV
+        echo "C_INCLUDE_PATH=$(pwd)/output/bmf/include" >> $GITHUB_ENV
+        echo "CPLUS_INCLUDE_PATH=$(pwd)/output/bmf/include" >> $GITHUB_ENV
+        echo "LIBRARY_PATH=$(pwd)/output/bmf/lib" >> $GITHUB_ENV
+        echo "PATH=$(pwd)/output/bmf/bin:$(pwd)/output/bmf/lib:$PATH" >> $GITHUB_ENV
+        echo "PYTHONPATH=$(pwd)/output/bmf/lib:$(pwd)/output" >> $GITHUB_ENV
 
     - name: Build Project
       shell: pwsh
       run: |
-        mkdir -p src/build
         cd src
-        cmake -B build -DCMAKE_BUILD_TYPE=Release
-        cmake --build build --config Release
+        cmake -B build
+        cd build
+        cmake --build . --config Release
 
     - name: Create Package
       shell: pwsh
       run: |
         mkdir -p OpenConverter_Windows_x64
-        Copy-Item -Path "src\build\Release\*" -Destination "OpenConverter_Windows_x64" -Recurse -Force
-        Copy-Item -Path "output\bmf\lib\*" -Destination "OpenConverter_Windows_x64" -Recurse -Force
+        Copy-Item -Path "src\build\*" -Destination "OpenConverter_Windows_x64" -Recurse
         7z a OpenConverter_Windows_x64.zip OpenConverter_Windows_x64
 
     - name: Upload build artifact
