@@ -3,14 +3,14 @@ name: Review Windows
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
+  workflow_dispatch: 
 
 jobs:
   build:
     runs-on: windows-2019
     concurrency:
       group: "review-windows-${{ github.event.pull_request.number }}"
-      cancel-in-progress: true
+      cancel-in-progress: true 
 
     steps:
     - name: Checkout target branch code (using pull_request_target)
@@ -69,21 +69,12 @@ jobs:
     - name: Setup FFmpeg
       shell: pwsh
       run: |
-        # 下载并解压 FFmpeg
         if (-not (Test-Path "ffmpeg-5.1.2-win64-gpl-shared")) {
           Invoke-WebRequest -Uri "https://github.com/GyanD/codexffmpeg/releases/download/5.1.2/ffmpeg-5.1.2-full_build-shared.7z" -OutFile "ffmpeg.7z"
           7z x ffmpeg.7z
           Rename-Item -Path "ffmpeg-5.1.2-full_build-shared" -NewName "ffmpeg-5.1.2-win64-gpl-shared"
           Remove-Item -Path "ffmpeg.7z"
         }
-
-        # 检查 FFmpeg 是否包含所需的头文件
-        $ffmpegIncludePath = "ffmpeg-5.1.2-win64-gpl-shared\include\libavformat\avformat.h"
-        if (-not (Test-Path $ffmpegIncludePath)) {
-          throw "FFmpeg 安装失败，缺少文件: $ffmpegIncludePath"
-        }
-
-        # 将 FFmpeg 复制到 MSYS2 的 usr\local 目录
         $usrLocal = "C:\msys64\usr\local"
         if (-not (Test-Path $usrLocal)) {
           New-Item -Path $usrLocal -ItemType Directory -Force
@@ -93,25 +84,24 @@ jobs:
     - name: Build Project
       shell: pwsh
       run: |
-        # 创建构建目录
         mkdir -p src/build
         cd src
-
-        # 设置 FFmpeg 相关环境变量
+        
+        # 设置环境变量
         $ffmpegRoot = "C:\msys64\usr\local"
         $env:FFMPEG_ROOT = $ffmpegRoot
         $env:FFMPEG_INCLUDE_DIRS = "$ffmpegRoot\include"
         $env:FFMPEG_LIBRARY_DIRS = "$ffmpegRoot\lib"
         $env:CMAKE_PREFIX_PATH = "$env:Qt5_DIR;$ffmpegRoot"
         $env:PATH = "$ffmpegRoot\bin;$env:PATH"
-
-        # 打印环境变量以供调试
+        
+        # 显示环境变量
         Write-Host "FFMPEG_ROOT: $env:FFMPEG_ROOT"
         Write-Host "FFMPEG_INCLUDE_DIRS: $env:FFMPEG_INCLUDE_DIRS"
         Write-Host "FFMPEG_LIBRARY_DIRS: $env:FFMPEG_LIBRARY_DIRS"
         Write-Host "CMAKE_PREFIX_PATH: $env:CMAKE_PREFIX_PATH"
-
-        # 运行 CMake 配置和构建
+        
+        # CMake构建
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" `
@@ -119,7 +109,7 @@ jobs:
           -DFFMPEG_ROOT="$ffmpegRoot" `
           -DFFMPEG_INCLUDE_DIRS="$env:FFMPEG_INCLUDE_DIRS" `
           -DFFMPEG_LIBRARY_DIRS="$env:FFMPEG_LIBRARY_DIRS"
-
+        
         cmake --build build --config Release
 
     - name: Create Package
@@ -140,4 +130,4 @@ jobs:
       uses: mxschmitt/action-tmate@v3
 
     - name: Finish
-      run: echo "Windows build complete"
+      run: echo "Windows build complete" 
