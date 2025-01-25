@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(BMF_TRANSCODER "enable BMF Transcoder" ON)
+option(BMF_TRANSCODER "enable BMF Transcoder" OFF)
 option(FFTOOL_TRANSCODER "enable FFmpeg Command Tool Transcoder" ON)
 option(FFMPEG_TRANSCODER "enable FFmpeg Core Transcoder" ON)
 
