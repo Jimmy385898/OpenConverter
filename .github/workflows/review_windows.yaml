@@ -74,7 +74,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.7'
+        python-version: '3.11'
         architecture: 'x64'
 
     - name: Setup Python and Dependencies
@@ -83,7 +83,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install timeout_decorator numpy onnxruntime pytest opencv-python cmake
         # 设置Python默认编码
-        $env:PYTHONIOENCODING = "utf-8"
+        [System.Environment]::SetEnvironmentVariable('PYTHONIOENCODING', 'utf-8', 'User')
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
@@ -102,9 +102,10 @@ jobs:
         $bashCommand = @'
         cd bmf
         export PATH=/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$PATH
-        export PYTHONPATH=/c/hostedtoolcache/windows/Python/3.7/x64/python
-        export PYTHON_INCLUDE_DIRS=/c/hostedtoolcache/windows/Python/3.7/x64/include
-        export PYTHON_LIBRARIES=/c/hostedtoolcache/windows/Python/3.7/x64/libs/python37.lib
+        export PYTHONIOENCODING=utf-8
+        export PYTHONHOME=/c/hostedtoolcache/windows/Python/3.11/x64
+        export PYTHON_INCLUDE_DIRS=/c/hostedtoolcache/windows/Python/3.11/x64/include
+        export PYTHON_LIBRARIES=/c/hostedtoolcache/windows/Python/3.11/x64/libs/python311.lib
         python -V
         python3 -V
         echo $PATH
@@ -120,13 +121,22 @@ jobs:
     - name: Set Environment Variables
       shell: pwsh
       run: |
-        echo "PYTHONIOENCODING=utf-8" | Out-File -FilePath $env:GITHUB_ENV -Append
-        echo "PYTHONHOME=$((Get-Command python).Path | Split-Path -Parent)" | Out-File -FilePath $env:GITHUB_ENV -Append
-        echo "C_INCLUDE_PATH=$((Get-Location).Path)/output/bmf/include" | Out-File -FilePath $env:GITHUB_ENV -Append
-        echo "CPLUS_INCLUDE_PATH=$((Get-Location).Path)/output/bmf/include" | Out-File -FilePath $env:GITHUB_ENV -Append
-        echo "LIBRARY_PATH=$((Get-Location).Path)/output/bmf/lib" | Out-File -FilePath $env:GITHUB_ENV -Append
-        echo "PATH=$((Get-Location).Path)/output/bmf/bin;$((Get-Location).Path)/output/bmf/lib;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append
-        echo "PYTHONPATH=$((Get-Location).Path)/output/bmf/lib;$((Get-Location).Path)/output" | Out-File -FilePath $env:GITHUB_ENV -Append
+        # 使用PowerShell的方式设置环境变量
+        $pythonPath = (Get-Command python).Path
+        $pythonDir = Split-Path $pythonPath -Parent
+        
+        "PYTHONIOENCODING=utf-8" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "PYTHONHOME=$pythonDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "PYTHON_ROOT=$pythonDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "PYTHON_INCLUDE_DIRS=$pythonDir\include" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "PYTHON_LIBRARIES=$pythonDir\libs\python311.lib" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        
+        $currentLocation = Get-Location
+        "C_INCLUDE_PATH=$currentLocation\output\bmf\include" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "CPLUS_INCLUDE_PATH=$currentLocation\output\bmf\include" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "LIBRARY_PATH=$currentLocation\output\bmf\lib" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "PATH=$currentLocation\output\bmf\bin;$currentLocation\output\bmf\lib;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "PYTHONPATH=$currentLocation\output\bmf\lib;$currentLocation\output" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
     - name: Build Project
       shell: pwsh
