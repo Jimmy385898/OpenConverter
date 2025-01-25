@@ -70,6 +70,13 @@ jobs:
           New-Item -Path $usrLocal -ItemType Directory -Force
         }
         Copy-Item -Path "ffmpeg-5.1.2-win64-gpl-shared\*" -Destination $usrLocal -Recurse -Force
+        
+        # 设置FFmpeg环境变量
+        $env:FFMPEG_ROOT = "C:\msys64\usr\local"
+        $env:PATH = "$env:FFMPEG_ROOT\bin;$env:PATH"
+        
+        # 验证FFmpeg安装
+        ffmpeg -version
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -103,6 +110,10 @@ jobs:
         $env:PYTHONLEGACYWINDOWSFSENCODING = "0"
         $env:PYTHONLEGACYWINDOWSSTDIO = "0"
         
+        # 设置FFmpeg环境变量
+        $env:FFMPEG_ROOT = "C:\msys64\usr\local"
+        $env:PATH = "$env:FFMPEG_ROOT\bin;$env:PATH"
+        
         $bashPath = "C:\msys64\usr\bin\bash.exe"
         $bashCommand = @'
         cd bmf
@@ -116,6 +127,19 @@ jobs:
         export PYTHONPATH=/c/hostedtoolcache/windows/Python/3.11/x64/Lib:/c/hostedtoolcache/windows/Python/3.11/x64/DLLs
         export PYTHON_INCLUDE_DIRS=/c/hostedtoolcache/windows/Python/3.11/x64/include
         export PYTHON_LIBRARIES=/c/hostedtoolcache/windows/Python/3.11/x64/libs/python311.lib
+        
+        # FFmpeg环境变量
+        export FFMPEG_ROOT=/usr/local
+        export FFMPEG_INCLUDE_DIRS=/usr/local/include
+        export FFMPEG_LIBRARY_DIRS=/usr/local/lib
+        export PATH=$FFMPEG_ROOT/bin:$PATH
+        export LD_LIBRARY_PATH=$FFMPEG_ROOT/lib:$LD_LIBRARY_PATH
+        
+        # 显示环境
+        echo "FFmpeg version:"
+        ffmpeg -version
+        echo "FFmpeg location:"
+        which ffmpeg
         
         # 显示Python配置
         python -c "import sys; print(sys.executable); print(sys.prefix); print(sys.path)"
