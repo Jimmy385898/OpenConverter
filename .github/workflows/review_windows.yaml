@@ -106,20 +106,57 @@ jobs:
       shell: pwsh
       run: |
         cd bmf
+        
+        # 设置Python环境变量
+        $pythonDir = "C:\hostedtoolcache\windows\Python\3.11.9\x64"
+        $env:PYTHONHOME = $pythonDir
+        $env:PYTHONPATH = "$pythonDir\Lib;$pythonDir\DLLs"
         $env:PYTHONIOENCODING = "utf-8"
         $env:PYTHONUTF8 = "1"
         
-        # 设置环境变量
-        $env:PATH = "/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$env:PATH"
-        $pythonDir = "/c/hostedtoolcache/windows/Python/3.11/x64"
-        $env:PYTHONHOME = $pythonDir
-        $env:PYTHON = "$pythonDir/python.exe"
-        $env:PYTHONPATH = "$pythonDir/Lib:$pythonDir/DLLs"
+        # 设置系统路径
+        $env:PATH = "$pythonDir;$pythonDir\Scripts;C:\msys64\usr\bin;C:\msys64\usr\local\bin;$env:PATH"
+        
+        # 显示Python配置
+        Write-Host "Python Configuration:"
+        Write-Host "PYTHONHOME: $env:PYTHONHOME"
+        Write-Host "PYTHONPATH: $env:PYTHONPATH"
+        Write-Host "Python Version:"
+        & $pythonDir\python.exe -V
+        
+        # 使用bash执行构建命令
+        $bashCommand = @"
+        export PYTHONHOME='$($pythonDir.Replace('\','/'))'
+        export PYTHONPATH='$($env:PYTHONPATH.Replace('\','/'))'
+        export PATH='$($pythonDir.Replace('\','/')):$($pythonDir.Replace('\','/'))/Scripts:/usr/bin:/usr/local/bin:$PATH'
+        export PYTHONIOENCODING=utf-8
+        
+        # 显示环境
+        echo "Current PATH: $PATH"
+        echo "PYTHONHOME: $PYTHONHOME"
+        echo "PYTHONPATH: $PYTHONPATH"
         
         # 构建BMF
         ./build_win_lite.sh --msvc=2019 --preset=x64-Release bmf_ffmpeg
-        cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
-        cp -r build_win_lite/x64-Release/output ..
+"@
+        
+        # 将命令写入临时文件
+        $bashCommand | Out-File -FilePath "build_command.sh" -Encoding utf8
+        
+        # 执行构建命令
+        & "C:\msys64\usr\bin\bash.exe" -l build_command.sh
+        
+        # 检查构建输出目录
+        if (Test-Path "build_win_lite/x64-Release/output") {
+            Write-Host "Build output directory exists"
+            Copy-Item -Path "build_win_lite/x64-Release/output" -Destination ".." -Recurse -Force
+        } else {
+            Write-Host "Build output directory not found!"
+            Write-Host "Current directory: $(Get-Location)"
+            Write-Host "Directory contents:"
+            Get-ChildItem -Recurse | Select-Object FullName
+            exit 1
+        }
 
     - name: Set Environment Variables
       shell: pwsh
