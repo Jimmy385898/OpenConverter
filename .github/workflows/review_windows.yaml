@@ -65,8 +65,11 @@ jobs:
           Rename-Item -Path "ffmpeg-n5.1.2-29-g74c3e2f9c7-win64-gpl-shared" -NewName "ffmpeg-5.1.2-win64-gpl-shared"
           Remove-Item -Path "ffmpeg.zip"
         }
-        New-Item -Path "/usr/local" -ItemType Directory -Force
-        Copy-Item -Path "ffmpeg-5.1.2-win64-gpl-shared/*" -Destination "/usr/local/" -Recurse -Force
+        $usrLocal = "C:\msys64\usr\local"
+        if (-not (Test-Path $usrLocal)) {
+          New-Item -Path $usrLocal -ItemType Directory -Force
+        }
+        Copy-Item -Path "ffmpeg-5.1.2-win64-gpl-shared\*" -Destination $usrLocal -Recurse -Force
 
     - name: Setup Python and Dependencies
       run: |
