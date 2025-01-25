@@ -68,9 +68,12 @@ jobs:
       run: |
         $bashPath = "C:\msys64\usr\bin\bash.exe"
         $bashCommand = @'
+        export PATH=/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$PATH
         eval "$(./win_env/vcvarsall.sh x64)"
         export INCLUDE="${INCLUDE};C:\\msys64\\usr\\local\\include"
         ./build_win_lite.sh --msvc=2019 --preset=x64-Release bmf_ffmpeg
+        cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
+        cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
         cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
         cp -r build_win_lite/x64-Release/output .
         '@
