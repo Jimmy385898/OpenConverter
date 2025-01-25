@@ -81,6 +81,7 @@ jobs:
       run: |
         $bashPath = "C:\msys64\usr\bin\bash.exe"
         $bashCommand = @'
+        cd bmf
         export PATH=/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$PATH
         eval "$(./win_env/vcvarsall.sh x64)"
         export INCLUDE="${INCLUDE};C:\\msys64\\usr\\local\\include"
@@ -88,7 +89,7 @@ jobs:
         cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
         cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
         cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
-        cp -r build_win_lite/x64-Release/output .
+        cp -r build_win_lite/x64-Release/output ..
         '@
         echo $bashCommand | & $bashPath
 
