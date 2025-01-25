@@ -82,6 +82,8 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install timeout_decorator numpy onnxruntime pytest opencv-python cmake
+        # 设置Python默认编码
+        $env:PYTHONIOENCODING = "utf-8"
 
     - name: Build BMF
       shell: pwsh
@@ -106,28 +108,39 @@ jobs:
         echo $bashCommand | & $bashPath
 
     - name: Set Environment Variables
-      shell: bash
+      shell: pwsh
       run: |
-        echo "PYTHONHOME=$(dirname $(which python))" >> $GITHUB_ENV
-        echo "C_INCLUDE_PATH=$(pwd)/output/bmf/include" >> $GITHUB_ENV
-        echo "CPLUS_INCLUDE_PATH=$(pwd)/output/bmf/include" >> $GITHUB_ENV
-        echo "LIBRARY_PATH=$(pwd)/output/bmf/lib" >> $GITHUB_ENV
-        echo "PATH=$(pwd)/output/bmf/bin:$(pwd)/output/bmf/lib:$PATH" >> $GITHUB_ENV
-        echo "PYTHONPATH=$(pwd)/output/bmf/lib:$(pwd)/output" >> $GITHUB_ENV
+        echo "PYTHONIOENCODING=utf-8" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "PYTHONHOME=$((Get-Command python).Path | Split-Path -Parent)" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "C_INCLUDE_PATH=$((Get-Location).Path)/output/bmf/include" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "CPLUS_INCLUDE_PATH=$((Get-Location).Path)/output/bmf/include" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "LIBRARY_PATH=$((Get-Location).Path)/output/bmf/lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "PATH=$((Get-Location).Path)/output/bmf/bin;$((Get-Location).Path)/output/bmf/lib;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "PYTHONPATH=$((Get-Location).Path)/output/bmf/lib;$((Get-Location).Path)/output" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     - name: Build Project
       shell: pwsh
       run: |
+        # 确保目录存在
+        New-Item -Path "src" -ItemType Directory -Force -ErrorAction SilentlyContinue
         cd src
-        cmake -B build
-        cd build
-        cmake --build . --config Release
+        # 设置CMake环境变量
+        $env:CMAKE_PREFIX_PATH = "$((Get-Location).Path)\..\output\bmf"
+        $env:BMF_ROOT = "$((Get-Location).Path)\..\output\bmf"
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
 
     - name: Create Package
       shell: pwsh
       run: |
-        mkdir -p OpenConverter_Windows_x64
-        Copy-Item -Path "src\build\*" -Destination "OpenConverter_Windows_x64" -Recurse
+        # 确保输出目录存在
+        New-Item -Path "OpenConverter_Windows_x64" -ItemType Directory -Force
+        # 复制构建文件
+        Copy-Item -Path "src\build\Release\*" -Destination "OpenConverter_Windows_x64" -Recurse -Force
+        # 复制依赖库
+        Copy-Item -Path "output\bmf\lib\*" -Destination "OpenConverter_Windows_x64" -Recurse -Force
+        Copy-Item -Path "output\bmf\bin\*" -Destination "OpenConverter_Windows_x64" -Recurse -Force
+        # 创建压缩包
         7z a OpenConverter_Windows_x64.zip OpenConverter_Windows_x64
 
     - name: Upload build artifact
