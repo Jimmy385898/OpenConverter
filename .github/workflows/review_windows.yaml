@@ -41,9 +41,17 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-wget
+          mingw-w64-x86_64-curl
           unzip
           wget
           curl
+          tar
+          p7zip
+          msys2-runtime
+          msys2-runtime-devel
+          mingw-w64-x86_64-toolchain
+          base-devel
+          mingw-w64-x86_64-gtest
 
     - name: Checkout BMF repository
       run: |
@@ -106,7 +114,7 @@ jobs:
       shell: bash
       run: |
         cd bmf
-        export PATH=/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$PATH
+        export PATH=/usr/bin:/mingw64/bin:/usr/local/bin:/c/msys64/usr/bin:$PATH
         export PYTHONIOENCODING=utf-8
         export PYTHONHOME=/c/hostedtoolcache/windows/Python/3.11/x64
         export PYTHON=/c/hostedtoolcache/windows/Python/3.11/x64/python.exe
@@ -115,13 +123,29 @@ jobs:
         export PYTHON_LIBRARIES=/c/hostedtoolcache/windows/Python/3.11/x64/libs/python311.lib
         
         # 显示环境
+        which wget
+        which curl
         python -V
         python3 -V
         echo $PATH
         
+        # 如果wget不可用，使用curl作为备选
+        download_file() {
+          local url=$1
+          local output=$2
+          if command -v wget &> /dev/null; then
+            wget "$url" -O "$output"
+          else
+            curl -L "$url" -o "$output"
+          fi
+        }
+        
         # 构建BMF
         eval "$(./win_env/vcvarsall.sh x64)"
         export INCLUDE="${INCLUDE};/c/msys64/usr/local/include"
+        
+        # 修改build_win_lite.sh中的wget命令
+        sed -i 's/wget/curl -L -O/g' build_win_lite.sh
         
         ./build_win_lite.sh --msvc=2019 --preset=x64-Release bmf_ffmpeg
         cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
