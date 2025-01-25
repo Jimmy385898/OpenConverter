@@ -193,17 +193,20 @@ jobs:
         New-Item -Path "src" -ItemType Directory -Force -ErrorAction SilentlyContinue
         cd src
         
-        # 设置FFmpeg环境变量
+        # 设置BMF和FFmpeg环境变量
         $ffmpegRoot = "C:\msys64\usr\local"
+        $bmfRoot = "$((Get-Location).Path)\..\output\bmf"
+        
         $env:FFMPEG_ROOT_PATH = $ffmpegRoot
         $env:FFMPEG_ROOT = $ffmpegRoot
         $env:FFMPEG_INCLUDE_DIRS = "$ffmpegRoot\include"
         $env:FFMPEG_LIBRARY_DIRS = "$ffmpegRoot\lib"
+        $env:BMF_ROOT = $bmfRoot
+        $env:BMF_INCLUDE_DIRS = "$bmfRoot\include"
+        $env:BMF_LIBRARY_DIRS = "$bmfRoot\lib"
         
         # 设置CMake环境变量
-        $env:CMAKE_PREFIX_PATH = "$((Get-Location).Path)\..\output\bmf;$env:Qt5_DIR;$ffmpegRoot"
-        $env:BMF_ROOT = "$((Get-Location).Path)\..\output\bmf"
-        $env:Qt5_DIR = "$env:Qt5_DIR"
+        $env:CMAKE_PREFIX_PATH = "$bmfRoot;$env:Qt5_DIR;$ffmpegRoot"
         
         # 显示环境变量用于调试
         Write-Host "CMAKE_PREFIX_PATH: $env:CMAKE_PREFIX_PATH"
@@ -211,13 +214,24 @@ jobs:
         Write-Host "FFMPEG_ROOT_PATH: $env:FFMPEG_ROOT_PATH"
         Write-Host "FFMPEG_INCLUDE_DIRS: $env:FFMPEG_INCLUDE_DIRS"
         Write-Host "FFMPEG_LIBRARY_DIRS: $env:FFMPEG_LIBRARY_DIRS"
+        Write-Host "BMF_ROOT: $env:BMF_ROOT"
+        Write-Host "BMF_INCLUDE_DIRS: $env:BMF_INCLUDE_DIRS"
         Write-Host "Current Location: $((Get-Location).Path)"
         
-        # 验证FFmpeg文件存在
+        # 验证关键文件存在
+        Write-Host "Checking for required files..."
         if (Test-Path "$ffmpegRoot\bin\ffmpeg.exe") {
             Write-Host "FFmpeg executable found"
         } else {
             Write-Host "FFmpeg executable not found!"
+        }
+        
+        if (Test-Path "$bmfRoot\include\builder.hpp") {
+            Write-Host "BMF builder.hpp found"
+        } else {
+            Write-Host "BMF builder.hpp not found!"
+            Write-Host "Contents of $bmfRoot\include:"
+            Get-ChildItem "$bmfRoot\include" -Recurse
         }
         
         # CMake配置和构建
@@ -227,7 +241,10 @@ jobs:
           -DQt5_DIR="$env:Qt5_DIR/lib/cmake/Qt5" `
           -DFFMPEG_ROOT="$ffmpegRoot" `
           -DFFMPEG_INCLUDE_DIRS="$env:FFMPEG_INCLUDE_DIRS" `
-          -DFFMPEG_LIBRARY_DIRS="$env:FFMPEG_LIBRARY_DIRS"
+          -DFFMPEG_LIBRARY_DIRS="$env:FFMPEG_LIBRARY_DIRS" `
+          -DBMF_ROOT="$bmfRoot" `
+          -DBMF_INCLUDE_DIRS="$env:BMF_INCLUDE_DIRS" `
+          -DBMF_LIBRARY_DIRS="$env:BMF_LIBRARY_DIRS"
         
         if ($LASTEXITCODE -eq 0) {
             cmake --build build --config Release
