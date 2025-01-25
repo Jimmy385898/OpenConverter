@@ -192,23 +192,49 @@ jobs:
         # 确保目录存在
         New-Item -Path "src" -ItemType Directory -Force -ErrorAction SilentlyContinue
         cd src
+        
+        # 设置FFmpeg环境变量
+        $ffmpegRoot = "C:\msys64\usr\local"
+        $env:FFMPEG_ROOT_PATH = $ffmpegRoot
+        $env:FFMPEG_ROOT = $ffmpegRoot
+        $env:FFMPEG_INCLUDE_DIRS = "$ffmpegRoot\include"
+        $env:FFMPEG_LIBRARY_DIRS = "$ffmpegRoot\lib"
+        
         # 设置CMake环境变量
-        $env:CMAKE_PREFIX_PATH = "$((Get-Location).Path)\..\output\bmf;$env:Qt5_DIR"
+        $env:CMAKE_PREFIX_PATH = "$((Get-Location).Path)\..\output\bmf;$env:Qt5_DIR;$ffmpegRoot"
         $env:BMF_ROOT = "$((Get-Location).Path)\..\output\bmf"
         $env:Qt5_DIR = "$env:Qt5_DIR"
         
         # 显示环境变量用于调试
         Write-Host "CMAKE_PREFIX_PATH: $env:CMAKE_PREFIX_PATH"
         Write-Host "Qt5_DIR: $env:Qt5_DIR"
+        Write-Host "FFMPEG_ROOT_PATH: $env:FFMPEG_ROOT_PATH"
+        Write-Host "FFMPEG_INCLUDE_DIRS: $env:FFMPEG_INCLUDE_DIRS"
+        Write-Host "FFMPEG_LIBRARY_DIRS: $env:FFMPEG_LIBRARY_DIRS"
         Write-Host "Current Location: $((Get-Location).Path)"
+        
+        # 验证FFmpeg文件存在
+        if (Test-Path "$ffmpegRoot\bin\ffmpeg.exe") {
+            Write-Host "FFmpeg executable found"
+        } else {
+            Write-Host "FFmpeg executable not found!"
+        }
         
         # CMake配置和构建
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" `
-          -DQt5_DIR="$env:Qt5_DIR/lib/cmake/Qt5"
+          -DQt5_DIR="$env:Qt5_DIR/lib/cmake/Qt5" `
+          -DFFMPEG_ROOT="$ffmpegRoot" `
+          -DFFMPEG_INCLUDE_DIRS="$env:FFMPEG_INCLUDE_DIRS" `
+          -DFFMPEG_LIBRARY_DIRS="$env:FFMPEG_LIBRARY_DIRS"
         
-        cmake --build build --config Release
+        if ($LASTEXITCODE -eq 0) {
+            cmake --build build --config Release
+        } else {
+            Write-Host "CMake configuration failed!"
+            exit 1
+        }
 
     - name: Create Package
       shell: pwsh
