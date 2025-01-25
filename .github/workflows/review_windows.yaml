@@ -103,20 +103,26 @@ jobs:
         cache: true
 
     - name: Build BMF
-      shell: pwsh
+      shell: bash
       run: |
         cd bmf
-        $env:PYTHONIOENCODING = "utf-8"
-        $env:PYTHONUTF8 = "1"
+        export PATH=/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$PATH
+        export PYTHONIOENCODING=utf-8
+        export PYTHONHOME=/c/hostedtoolcache/windows/Python/3.11/x64
+        export PYTHON=/c/hostedtoolcache/windows/Python/3.11/x64/python.exe
+        export PYTHONPATH=/c/hostedtoolcache/windows/Python/3.11/x64/Lib:/c/hostedtoolcache/windows/Python/3.11/x64/DLLs
+        export PYTHON_INCLUDE_DIRS=/c/hostedtoolcache/windows/Python/3.11/x64/include
+        export PYTHON_LIBRARIES=/c/hostedtoolcache/windows/Python/3.11/x64/libs/python311.lib
         
-        # 设置环境变量
-        $env:PATH = "/usr/bin:/usr/lib:/usr/local/bin:/usr/local/lib:$env:PATH"
-        $pythonDir = "/c/hostedtoolcache/windows/Python/3.11/x64"
-        $env:PYTHONHOME = $pythonDir
-        $env:PYTHON = "$pythonDir/python.exe"
-        $env:PYTHONPATH = "$pythonDir/Lib:$pythonDir/DLLs"
+        # 显示环境
+        python -V
+        python3 -V
+        echo $PATH
         
         # 构建BMF
+        eval "$(./win_env/vcvarsall.sh x64)"
+        export INCLUDE="${INCLUDE};/c/msys64/usr/local/include"
+        
         ./build_win_lite.sh --msvc=2019 --preset=x64-Release bmf_ffmpeg
         cmake --build build_win_lite/x64-Release --config Release --target ALL_BUILD
         cp -r build_win_lite/x64-Release/output ..
