@@ -1,20 +1,20 @@
-name: Review Windows
+name: Review
 
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: windows-latest
     concurrency:
-      group: "review-windows-${{ github.event.pull_request.number }}"
+      group: "review-${{ github.event.pull_request.number }}"
       cancel-in-progress: true 
 
     steps:
-    - name: Checkout target branch code (using pull_request_target)
-      uses: actions/checkout@v2
+    - name: Checkout target branch code
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.ref }}
 
@@ -26,100 +26,48 @@ jobs:
 
     - name: Print current branch and commit hash
       run: |
-        echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
-        echo "Current commit hash: $(git rev-parse HEAD)"
+        git rev-parse --abbrev-ref HEAD
+        git rev-parse HEAD
 
-    - name: Setup MSYS2
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: >-
-          git
-          make
-          pkg-config
-          mingw-w64-x86_64-cmake
-          mingw-w64-x86_64-gcc
-          unzip
-          curl
-
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        architecture: 'x64'
-
-    - name: Setup Python and Dependencies
-      shell: pwsh
-      run: |
-        python -m pip install --upgrade pip
-        pip install timeout_decorator numpy onnxruntime pytest opencv-python cmake
-        [System.Environment]::SetEnvironmentVariable('PYTHONIOENCODING', 'utf-8', 'User')
-
-    - name: Install Qt
+    - name: Setup Qt
       uses: jurplel/install-qt-action@v3
       with:
         version: '5.15.2'
         host: 'windows'
         target: 'desktop'
         arch: 'win64_msvc2019_64'
-        tools: 'tools_qtcreator'
-        cache: true
+        install-deps: 'true'
 
-    - name: Setup FFmpeg
-      shell: pwsh
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.1
+      with:
+        vs-version: '16.0'
+
+    - name: Download and Install FFmpeg
       run: |
-        if (-not (Test-Path "ffmpeg-5.1.2-win64-gpl-shared")) {
-          Invoke-WebRequest -Uri "https://github.com/GyanD/codexffmpeg/releases/download/5.1.2/ffmpeg-5.1.2-full_build-shared.7z" -OutFile "ffmpeg.7z"
-          7z x ffmpeg.7z
-          Rename-Item -Path "ffmpeg-5.1.2-full_build-shared" -NewName "ffmpeg-5.1.2-win64-gpl-shared"
-          Remove-Item -Path "ffmpeg.7z"
-        }
-        $usrLocal = "C:\msys64\usr\local"
-        if (-not (Test-Path $usrLocal)) {
-          New-Item -Path $usrLocal -ItemType Directory -Force
-        }
-        Copy-Item -Path "ffmpeg-5.1.2-win64-gpl-shared\*" -Destination $usrLocal -Recurse -Force
+        Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+        Expand-Archive -Path ffmpeg.zip -DestinationPath .\ffmpeg
+        echo "FFMPEG_ROOT_PATH=$((Get-Item .\ffmpeg\ffmpeg-master-*).FullName)" >> $env:GITHUB_ENV
 
-    - name: Build Project
-      shell: pwsh
+    - name: Configure CMake
       run: |
-        mkdir -p src/build
-        cd src
-        
-        # 设置环境变量
-        $ffmpegRoot = "C:\msys64\usr\local"
-        $env:FFMPEG_ROOT = $ffmpegRoot
-        $env:FFMPEG_INCLUDE_DIRS = "$ffmpegRoot\include"
-        $env:FFMPEG_LIBRARY_DIRS = "$ffmpegRoot\lib"
-        $env:CMAKE_PREFIX_PATH = "$env:Qt5_DIR;$ffmpegRoot"
-        $env:PATH = "$ffmpegRoot\bin;$env:PATH"
-        
-        # 显示环境变量
-        Write-Host "FFMPEG_ROOT: $env:FFMPEG_ROOT"
-        Write-Host "FFMPEG_INCLUDE_DIRS: $env:FFMPEG_INCLUDE_DIRS"
-        Write-Host "FFMPEG_LIBRARY_DIRS: $env:FFMPEG_LIBRARY_DIRS"
-        Write-Host "CMAKE_PREFIX_PATH: $env:CMAKE_PREFIX_PATH"
-        
-        # CMake构建
-        cmake -B build `
-          -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" `
-          -DQt5_DIR="$env:Qt5_DIR/lib/cmake/Qt5" `
-          -DFFMPEG_ROOT="$ffmpegRoot" `
-          -DFFMPEG_INCLUDE_DIRS="$env:FFMPEG_INCLUDE_DIRS" `
-          -DFFMPEG_LIBRARY_DIRS="$env:FFMPEG_LIBRARY_DIRS"
-        
-        cmake --build build --config Release
+        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+      env:
+        FFMPEG_ROOT: ${{ env.FFMPEG_ROOT_PATH }}
 
-    - name: Create Package
-      shell: pwsh
+    - name: Build with CMake
       run: |
-        mkdir -p OpenConverter_Windows_x64
-        Copy-Item -Path "src\build\Release\*" -Destination "OpenConverter_Windows_x64" -Recurse -Force
-        7z a OpenConverter_Windows_x64.zip OpenConverter_Windows_x64
+        cmake --build ${{github.workspace}}/build --config Release -j $env:NUMBER_OF_PROCESSORS
 
-    - name: Upload build artifact
+    - name: Package Build
+      run: |
+        $buildDir = "${{github.workspace}}/build/Release"
+        $outputDir = "OpenConverter_Windows_x64"
+        New-Item -ItemType Directory -Path $outputDir
+        Copy-Item -Path "$buildDir/*" -Destination $outputDir -Recurse
+        Compress-Archive -Path "$outputDir/*" -DestinationPath "OpenConverter_Windows_x64.zip"
+
+    - name: Upload Build Artifact
       uses: actions/upload-artifact@v3
       with:
         name: OpenConverter_Windows_x64
@@ -130,4 +78,4 @@ jobs:
       uses: mxschmitt/action-tmate@v3
 
     - name: Finish
-      run: echo "Windows build complete" 
+      run: echo "Release upload complete"
