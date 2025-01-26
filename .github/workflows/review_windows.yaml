@@ -45,12 +45,9 @@ jobs:
         choco install -y nasm yasm
         choco install -y python --version=3.9.0
         choco install -y 7zip
-
-    - name: Checkout BMF repository (specific branch)
-      shell: bash
-      run: |
-        git clone https://github.com/JackLau1222/bmf.git
-        (cd bmf && git checkout fork_by_oc)
+        choco install -y msys2
+        refreshenv
+        pacman -S --noconfirm mingw-w64-x86_64-x264
 
     - name: Cache FFmpeg build
       uses: actions/cache@v3
@@ -60,14 +57,6 @@ jobs:
         key: ${{ runner.os }}-ffmpeg-${{ hashFiles('bmf/scripts/build_ffmpeg.sh') }}
         restore-keys: |
           ${{ runner.os }}-ffmpeg-
-
-    - name: Cache BMF build
-      uses: actions/cache@v3
-      with:
-        path: bmf/output/
-        key: ${{ runner.os }}-bmf-${{ hashFiles('bmf/build.sh') }}
-        restore-keys: |
-          ${{ runner.os }}-bmf-
 
     - name: Compile FFmpeg if not cached
       shell: bash
@@ -83,16 +72,6 @@ jobs:
           echo "FFmpeg is already installed, skipping build."
         fi
         echo "FFMPEG_ROOT_PATH=$(pwd)/ffmpeg" >> $GITHUB_ENV
-
-    - name: Set up BMF if not cached
-      shell: bash
-      run: |
-        if [ ! -d "$(pwd)/bmf/output/" ]; then
-          (cd bmf && ./build.sh)
-        else
-          echo "BMF is already installed, skipping build."
-        fi
-        echo "BMF_ROOT_PATH=$(pwd)/bmf/output/bmf" >> $GITHUB_ENV
 
     - name: Install Qt
       shell: powershell
@@ -113,8 +92,6 @@ jobs:
         cp $FFMPEG_ROOT_PATH/lib/libswscale.so.6 src/build/lib
         cp $FFMPEG_ROOT_PATH/lib/libavfilter.so.8 src/build/lib
         cp $FFMPEG_ROOT_PATH/lib/libpostproc.so.56 src/build/lib
-        cp $BMF_ROOT_PATH/lib/libbuiltin_modules.so src/build/lib
-        cp $BMF_ROOT_PATH/BUILTIN_CONFIG.json src/build
         echo "set PATH=%~dp0lib;%PATH%" > src/build/activate_env.bat
 
     - name: Create zip package
