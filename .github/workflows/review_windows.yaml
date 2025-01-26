@@ -42,7 +42,8 @@ jobs:
       shell: powershell
       run: |
         choco install -y git cmake visualstudio2022buildtools
-        choco install -y nasm yasm
+        choco install -y nasm --version=2.16.01
+        choco install -y yasm
         choco install -y python --version=3.9.0
         choco install -y 7zip
 
@@ -54,6 +55,15 @@ jobs:
         key: ${{ runner.os }}-x264-${{ hashFiles('bmf/scripts/build_ffmpeg.sh') }}
         restore-keys: |
           ${{ runner.os }}-x264-
+
+    - name: Verify NASM version
+      shell: bash
+      run: |
+        nasm -v
+        if ! nasm -v | grep -q "version 2.1[3-9]"; then
+          echo "NASM version is too old, installing latest version"
+          choco install -y nasm --version=2.16.01
+        fi
 
     - name: Compile x264 if not cached
       shell: bash
